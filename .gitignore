@@ -14,3 +14,6 @@ hs_err_pid*
 .idea
 
 *~
+
+# CKA practice working copies
+exam-practice/**/q*.yaml

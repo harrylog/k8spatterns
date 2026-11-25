@@ -1,0 +1,1745 @@
+ ▐▛███▛█   Claude Code v2.1.330
+▝▜██████▀  Opus 5.5 · Claude Pro
+ ▝▝   ▝▝   ~/Downloads/k8s books/cka-study-guide
+
+
+❯ provide a cka level question, exactly as it would appear in the cka exam,     
+  meaning if there's a setting required, provide it, guid what to run, create   
+  folder for these kind of requests                                             
+
+● Bash(cd "/home/harry/Downloads/k8s books/cka-study-guide" && ls -la && ls -d
+      */ | head -50 && cat .gitignore 2>/dev/null | head; ls
+      ~/.claude/projects/-home-harry-Do…)
+  ⎿  total 108
+     drwxrwxr-x 22 harry harry  4096 Aug 10 18:45 .
+     drwxrwxr-x 13 harry harry  4096 Oct  4 14:43 ..
+     … +49 lines (ctrl+o to expand)
+
+● Bash(cd "/home/harry/Downloads/k8s books/cka-study-guide" && kubectl get nodes
+      2>&1 | head; kind get clusters 2>&1; ls app-a | head -30; ls ch14 ch16)
+  ⎿  NAME                  STATUS   ROLES           AGE    VERSION
+     harry-latitude-5550   Ready    control-plane   309d   v1.34.3+k3s1
+     No kind clusters found.
+     … +29 lines (ctrl+o to expand)
+
+● Bash(mkdir -p "/home/harry/Downloads/k8s
+      books/cka-study-guide/exam-practice/q01-sidecar-logging"; which jq)
+  ⎿  /usr/bin/jq
+
+● Write(exam-practice/README.md)
+  ⎿  Wrote 41 lines to exam-practice/README.md
+       1 # CKA Exam-Style Practice Questions
+       2 
+       3 Each folder is one self-contained, exam-style task.
+       4 
+       5 ```
+       6 qNN-<topic>/
+       7 ├── question.md   # The task, worded like the real exam. Read ON
+         LY this first.
+       8 ├── setup.sh      # Builds the starting state in your cluster (r
+         un before attempting)
+     … +33 lines (ctrl+o to expand)
+
+● Write(exam-practice/q01-sidecar-logging/question.md)
+  ⎿  Wrote 41 lines to exam-practice/q01-sidecar-logging/question.md
+       1 # Question 1 — Weight: 4%
+       2 
+       3 > **Context**
+       4 > You must connect to the correct host. Failure to do so may res
+         ult in a zero score.
+       5 > `[candidate@base] $ ssh cka-node01`
+       6 > *(Practice note: just use your local cluster — run `./setup.sh
+         ` first.)*
+       7 
+       8 ---
+     … +33 lines (ctrl+o to expand)
+
+● Write(exam-practice/q01-sidecar-logging/setup.sh)
+  ⎿  Wrote 43 lines to exam-practice/q01-sidecar-logging/setup.sh
+       1 #!/usr/bin/env bash
+       2 # Builds the starting state for Question 1. Safe to re-run (rese
+         ts the task).
+       3 set -euo pipefail
+       4 
+       5 NS=mercury
+       6 
+       7 kubectl delete deployment legacy-app -n "$NS" --ignore-not-found
+          --wait=true >/dev/null 2>&1 || true
+       8 kubectl create namespace "$NS" --dry-run=client -o yaml | kubect
+     … +36 lines (ctrl+o to expand)
+
+● Write(exam-practice/q01-sidecar-logging/verify.sh)
+  ⎿  Wrote 52 lines to exam-practice/q01-sidecar-logging/verify.sh
+       1 #!/usr/bin/env bash
+       2 # Grades Question 1.
+       3 set -uo pipefail
+       4 
+       5 NS=mercury
+       6 DEPLOY=legacy-app
+       7 EXPECTED_APP_CMD='i=0; while true; do echo "$(date) INFO legacy-
+         app processed order $i" >> /var/log/legacy-app.log; i=$((i+1)); 
+         sleep 5; done'
+       8 
+     … +44 lines (ctrl+o to expand)
+
+● Write(exam-practice/q01-sidecar-logging/cleanup.sh)
+  ⎿  Wrote 2 lines to exam-practice/q01-sidecar-logging/cleanup.sh
+      1 #!/usr/bin/env bash
+      2 kubectl delete namespace mercury --ignore-not-found
+
+● Write(exam-practice/q01-sidecar-logging/solution.md)
+  ⎿  Wrote 59 lines to exam-practice/q01-sidecar-logging/solution.md
+       1 # Solution — Question 1
+       2 
+       3 ## Steps
+       4 
+       5 ```bash
+       6 kubectl -n mercury get deploy legacy-app -o yaml > q1.yaml   # b
+         ackup + edit copy
+       7 kubectl -n mercury edit deploy legacy-app                    # o
+         r edit q1.yaml and apply
+       8 ```
+     … +51 lines (ctrl+o to expand)
+
+● Bash(cd "/home/harry/Downloads/k8s
+      books/cka-study-guide/exam-practice/q01-sidecar-logging" && \
+      sed -i 's/\${sidecar:-{\\}}/$sidecar/g' verify.sh && \…)
+  ⎿  21:# Sidecar may be a native sidecar (initContainers + restartPolicy:
+     Always)
+     22:sidecar=$(jq '[(.initContainers // [])[], (.containers // [])[]] |
+     … +30 lines (ctrl+o to expand)
+  ⎿  Updated exam-practice/q01-sidecar-logging/verify.sh +5 -4
+      20 
+      21  # Sidecar may be a native sidecar (initContainers + restartPoli
+          cy: Always)
+      22  sidecar=$(jq '[(.initContainers // [])[], (.containers // [])[]
+          ] | map(select(.name=="sidecar")) | first // empty' <<<"$pod")
+      23 +sidecar=${sidecar:-'{}'}                                       
+      24  app=$(jq '.containers[] | select(.name=="app")' <<<"$pod")
+      25 
+      25 -[ -n "$sidecar" ]; check "container 'sidecar' exists" $?       
+      26 +[ "$sidecar" != "{}" ]; check "container 'sidecar' exists" $?  
+      27  jq -e '.initContainers // [] | map(select(.name=="sidecar" and 
+          .restartPolicy=="Always")) | length==1' <<<"$pod" >/dev/null
+      28  check "'sidecar' is a native sidecar (initContainers, restartPo
+          licy: Always)" $?
+      28 -[ "$(jq -r '.image // ""' <<<"${sidecar:-{\}}")" = "busybox:sta
+         -ble" ]; check "sidecar image is busybox:stable" $?             
+      29 +[ "$(jq -r '.image // ""' <<<"$sidecar")" = "busybox:stable" ];
+         + check "sidecar image is busybox:stable" $?                    
+      30 
+      30 -sc_cmd=$(jq -r '((.command // []) + (.args // [])) | join(" ")'
+         - <<<"${sidecar:-{\}}")                                         
+      31 +sc_cmd=$(jq -r '((.command // []) + (.args // [])) | join(" ")'
+         + <<<"$sidecar")                                                
+      32  grep -qE 'tail -n ?\+1 -f /var/log/legacy-app.log' <<<"$sc_cmd"
+          ; check "sidecar runs 'tail -n+1 -f /var/log/legacy-app.log'" $
+          ?
+      33 
+      34  jq -e '.volumes // [] | map(select(.name=="logs")) | length==1'
+           <<<"$pod" >/dev/null; check "pod has a volume named 'logs'" $?
+      34 -jq -e '.volumeMounts // [] | map(select(.name=="logs" and .moun
+         -tPath=="/var/log")) | length==1' <<<"${sidecar:-{\}}" >/dev/nul
+         -l                                                              
+      35 +jq -e '.volumeMounts // [] | map(select(.name=="logs" and .moun
+         +tPath=="/var/log")) | length==1' <<<"$sidecar" >/dev/null      
+      36  check "sidecar mounts 'logs' at /var/log" $?
+      37  jq -e '.volumeMounts // [] | map(select(.name=="logs" and .moun
+          tPath=="/var/log")) | length==1' <<<"$app" >/dev/null
+      38  check "app mounts 'logs' at /var/log" $?
+  ⎿  (timeout 3m 20s)
+
+● The setup and the failing baseline both behave as expected. Next I'll apply
+  the reference solution to make sure the grader passes it, then reset the task
+  for you.
+
+● Bash(cd "/home/harry/Downloads/k8s
+      books/cka-study-guide/exam-practice/q01-sidecar-logging" && \
+      kubectl -n mercury patch deploy legacy-app --type=json -p='[…)
+  ⎿  deployment.apps/legacy-app patched
+     Question 1 — grading
+       [PASS] container 'sidecar' exists
+     … +17 lines (ctrl+o to expand)
+  ⎿  (timeout 3m 20s)
+
+● The reference solution failed the rollout check, so I'm looking into why.
+
+● Bash(cd "/home/harry/Downloads/k8s
+      books/cka-study-guide/exam-practice/q01-sidecar-logging" && \
+      kubectl -n mercury patch deploy legacy-app --type=json -p='[…)
+  ⎿  Error: Exit code 1
+     deployment.apps/legacy-app patched
+     Waiting for deployment "legacy-app" rollout to finish: 1 old replicas are 
+     pending termination...
+     error: timed out waiting for the condition
+     NAME                          READY   STATUS       RESTARTS      AGE
+     legacy-app-6f7c8499bd-577mw   0/2     Init:Error   4 (52s ago)   91s
+     legacy-app-98595b67c-jm7nw    1/1     Running      0             97s
+         TokenExpirationSeconds:  3607
+         ConfigMapName:           kube-root-ca.crt
+         Optional:                false
+     … +14 lines (ctrl+o to expand)
+  ⎿  Found 6 new diagnostic issues in 2 files (ctrl+o to expand)
+
+● A native sidecar starts before the app container, so tail -f exits on a
+  missing log file and leaves the Pod in Init:Error; I'm updating the question,
+  grader, and solution to use a regular co-located container instead. · summary
+
+● Bash(cd "/home/harry/Downloads/k8s
+      books/cka-study-guide/exam-practice/q01-sidecar-logging" && python3 -
+      <<'EOF'
+      import re…)
+  ⎿  verify.sh:21:# Accept the sidecar under containers or as a native side
+     car under initContainers
+  ⎿  Updated exam-practice/q01-sidecar-logging/question.md -1
+      31  > **Note**
+      32  > Do not modify the specification of the existing container oth
+          er than adding
+      33  > the required volume mount.
+      34 -> The sidecar must be implemented as a Kubernetes **native side
+         -car container**.                                               
+      34 
+      35  After your changes, the following command must stream the appli
+          cation's log
+      36  lines:
+  ⎿  Updated exam-practice/q01-sidecar-logging/verify.sh +2 -4
+      18  fi
+      19  pod=$(jq '.spec.template.spec' <<<"$spec")
+      20 
+      21 -# Sidecar may be a native sidecar (initContainers + restartPoli
+         -cy: Always)                                                    
+      21 +# Accept the sidecar under containers or as a native sidecar un
+         +der initContainers                                             
+      22  sidecar=$(jq '[(.initContainers // [])[], (.containers // [])[]
+          ] | map(select(.name=="sidecar")) | first // empty' <<<"$pod")
+      23  sidecar=${sidecar:-'{}'}
+      24  app=$(jq '.containers[] | select(.name=="app")' <<<"$pod")
+      25 
+      26  [ "$sidecar" != "{}" ]; check "container 'sidecar' exists" $?
+      27 -jq -e '.initContainers // [] | map(select(.name=="sidecar" and 
+         -.restartPolicy=="Always")) | length==1' <<<"$pod" >/dev/null   
+      28 -check "'sidecar' is a native sidecar (initContainers, restartPo
+         -licy: Always)" $?                                              
+      27  [ "$(jq -r '.image // ""' <<<"$sidecar")" = "busybox:stable" ];
+           check "sidecar image is busybox:stable" $?
+      28 
+      29  sc_cmd=$(jq -r '((.command // []) + (.args // [])) | join(" ")'
+           <<<"$sidecar")
+     ...
+      40    && [ "$(jq -r '.command[2]' <<<"$app")" = "$EXPECTED_APP_CMD"
+           ]
+      41  check "existing container 'app' image/command unchanged" $?
+      42 
+      45 -kubectl -n "$NS" rollout status deploy/"$DEPLOY" --timeout=60s 
+         ->/dev/null 2>&1; check "deployment rolled out and ready" $?    
+      43 +kubectl -n "$NS" rollout status deploy/"$DEPLOY" --timeout=90s 
+         +>/dev/null 2>&1; check "deployment rolled out and ready" $?    
+      44 
+      45  sleep 6
+      46  logs=$(kubectl -n "$NS" logs deploy/"$DEPLOY" -c sidecar --tail
+          =3 2>/dev/null)
+
+● Write(exam-practice/q01-sidecar-logging/solution.md)
+  ⎿  Added 23 lines, removed 17 lines
+       3  ## Steps
+       4 
+       5  ```bash
+       6 -kubectl -n mercury get deploy legacy-app -o yaml > q1.yaml   # 
+         -backup + edit copy                                             
+       7 -kubectl -n mercury edit deploy legacy-app                    # 
+         -or edit q1.yaml and apply                                      
+       6 +kubectl -n mercury get deploy legacy-app -o yaml > q1.yaml   # 
+         +backup first                                                   
+       7 +kubectl -n mercury edit deploy legacy-app                    # 
+         +or edit q1.yaml + kubectl apply -f                             
+       8  ```
+       9 
+      10  Edit `spec.template.spec` so it looks like this (additions mark
+          ed `# +`):
+      11 
+      12  ```yaml
+      13      spec:
+      14 -      initContainers:                                   # +    
+      15 -      - name: sidecar                                   # +    
+      16 -        image: busybox:stable                           # +    
+      17 -        restartPolicy: Always                           # +  <-
+         - makes it a native sidecar                                     
+      18 -        command: ["/bin/sh", "-c", "tail -n+1 -f /var/log/legac
+         -y-app.log"]  # +                                               
+      19 -        volumeMounts:                                   # +    
+      20 -        - name: logs                                    # +    
+      21 -          mountPath: /var/log                           # +    
+      14        containers:
+      15        - name: app
+      16          image: busybox:stable
+     ...
+      19          volumeMounts:                                   # +
+      20          - name: logs                                    # +
+      21            mountPath: /var/log                           # +
+      22 +      - name: sidecar                                   # +    
+      23 +        image: busybox:stable                           # +    
+      24 +        command: ["/bin/sh", "-c", "tail -n+1 -f /var/log/legac
+         +y-app.log"]  # +                                               
+      25 +        volumeMounts:                                   # +    
+      26 +        - name: logs                                    # +    
+      27 +          mountPath: /var/log                           # +    
+      28        volumes:                                          # +
+      29        - name: logs                                      # +
+      30          emptyDir: {}                                    # +
+     ...
+      40 
+      41  ## Why
+      42 
+      45 -- **Native sidecar** = an entry in `initContainers` with `resta
+         -rtPolicy: Always`                                              
+      46 -  (GA since v1.33). It starts before the main containers, keeps
+         - running for the                                               
+      47 -  whole Pod lifetime, and doesn't block Pod termination. A plai
+         -n second entry                                                 
+      48 -  under `containers` also "works" but doesn't meet the requirem
+         -ent here.                                                      
+      49 -- **emptyDir** is the right volume type: it is shared by all co
+         -ntainers in the                                                
+      50 -  Pod and lives as long as the Pod does.                       
+      43 +- **emptyDir** is the right volume type. Every container in the
+         + Pod shares it,                                                
+      44 +  and it lasts as long as the Pod does.                        
+      45  - Before the change, the log file lived in the `app` container'
+          s own writable
+      46    layer, so no other container could see it.
+      47  - `tail -n+1 -f` prints the file from line 1 and keeps followin
+          g it, so the
+      54 -  sidecar's stdout (and therefore `kubectl logs`) mirrors the l
+         -og file.                                                       
+      48 +  sidecar's stdout (and so `kubectl logs`) mirrors the log file
+         +.                                                              
+      49 +- You may see the sidecar restart once if it starts before `app
+         +` has created the                                              
+      50 +  file. That's harmless: it recovers as soon as the file exists
+         +.                                                              
+      51 
+      52 +## Gotcha: native sidecar (`initContainers` + `restartPolicy: A
+         +lways`)                                                        
+      53 +                                                               
+      54 +A native sidecar **starts before** the main containers, and the
+         + kubelet waits for                                             
+      55 +it to be running before it starts `app`. Here, `tail -f` exits 
+         +straight away                                                  
+      56 +because `/var/log/legacy-app.log` doesn't exist yet. So `app` n
+         +ever starts and                                                
+      57 +the Pod loops in `Init:Error`, which means the native form fail
+         +s with this exact                                              
+      58 +command. To use a native sidecar for log shipping, use `tail -F
+         +` (it retries                                                  
+      59 +until the file appears) or `touch` the file first. On the exam,
+         + use the command                                               
+      60 +exactly as given.                                              
+      61 +                                                               
+      62  ## Docs to bookmark
+      63 
+      64  - Sidecar containers: https://kubernetes.io/docs/concepts/workl
+          oads/pods/sidecar-containers/
+
+● Bash(cd "/home/harry/Downloads/k8s
+      books/cka-study-guide/exam-practice/q01-sidecar-logging" && ./setup.sh
+      >/dev/null && \
+      kubectl -n mercury patch deploy legacy-app…)
+  ⎿  deployment.apps/legacy-app patched
+     Question 1 — grading
+       [PASS] container 'sidecar' exists
+     … +18 lines (ctrl+o to expand)
+  ⎿  (timeout 5m)
+
+● The grader was reading logs from an old Pod that was still terminating, which
+  has no sidecar. I'm switching it to read from the new Pod and retry. · summary
+
+● Bash(cd "/home/harry/Downloads/k8s
+      books/cka-study-guide/exam-practice/q01-sidecar-logging" && python3 -
+      <<'EOF'
+      v=open('verify.sh').read()…)
+  ⎿  Question 1 — grading
+       [PASS] container 'sidecar' exists
+       [PASS] sidecar image is busybox:stable
+     … +13 lines (ctrl+o to expand)
+  ⎿  Updated exam-practice/q01-sidecar-logging/verify.sh +9 -3
+      42 
+      43  kubectl -n "$NS" rollout status deploy/"$DEPLOY" --timeout=90s
+          >/dev/null 2>&1; check "deployment rolled out and ready" $?
+      44 
+      45 -sleep 6                                                        
+      46 -logs=$(kubectl -n "$NS" logs deploy/"$DEPLOY" -c sidecar --tail
+         -=3 2>/dev/null)                                                
+      47 -grep -q "legacy-app processed order" <<<"$logs"; check "'kubect
+         -l logs -c sidecar' shows application log lines" $?             
+      45 +# Read from a running pod that has the sidecar (old pods may st
+         +ill be terminating)                                            
+      46 +ok=1                                                           
+      47 +for _ in $(seq 1 12); do                                       
+      48 +  for p in $(kubectl -n "$NS" get pods -l app=legacy-app --fiel
+         +d-selector=status.phase=Running -o name 2>/dev/null); do       
+      49 +    if kubectl -n "$NS" logs "$p" -c sidecar --tail=3 2>/dev/nu
+         +ll | grep -q "legacy-app processed order"; then ok=0; break 2; 
+         +fi                                                             
+      50 +  done                                                         
+      51 +  sleep 5                                                      
+      52 +done                                                           
+      53 +check "'kubectl logs -c sidecar' shows application log lines" $
+         +ok                                                             
+      54 
+      55  echo
+      56  echo "Score: $pass/$((pass+fail))"
+  ⎿  (timeout 5m)
+  Wrote 1 memory (ctrl+o to expand)
+
+● Bash(echo '- [CKA exam practice folder](cka-exam-practice-folder.md) —
+      convention for adding exam-style questions under exam-practice/' >>
+      /home/harry/.claude/projec…)
+  ⎿  (No output)
+
+● I made a new exam-practice/ folder for questions like this, plus the first
+  question, q01-sidecar-logging/. I tested it on your k3s cluster: the grader
+  scores the starting state 2/9 and the reference solution 9/9. The task is now
+  reset and ready for you to attempt.
+
+  How to run it
+
+  cd "exam-practice/q01-sidecar-logging"
+  ./setup.sh        # already done; re-run it any time to reset the task
+  cat question.md   # start a timer, aim for 6–8 minutes
+  ./verify.sh       # grades you check by check
+  ./cleanup.sh      # deletes the mercury namespace when you're finished
+
+  solution.md has the answer, so don't open it until you've tried.
+
+  The question (as it would appear in the exam)
+
+  ▎ Question 1 — Weight: 4%
+  ▎ You must connect to the correct host. Failure to do so may result in a zero 
+  ▎ score.
+  ▎ [candidate@base] $ ssh cka-node01 (practice: use your local cluster)
+  ▎
+  ▎ Task
+  ▎ An existing legacy application runs as the Deployment legacy-app in the 
+  ▎ namespace mercury. The application writes its log output to the file 
+  ▎ /var/log/legacy-app.log and does not write anything to stdout, so its logs 
+  ▎ cannot be read with kubectl logs.
+  ▎
+  ▎ Update the existing Deployment legacy-app, adding a co-located container to 
+  ▎ the Pod with the following specification:
+  ▎ - Name: sidecar
+  ▎ - Image: busybox:stable
+  ▎ - The container must run the command: /bin/sh -c "tail -n+1 -f 
+  ▎ /var/log/legacy-app.log"
+  ▎
+  ▎ Use a Volume named logs, mounted at /var/log, to make the log file 
+  ▎ legacy-app.log available to the co-located container.
+  ▎
+  ▎ Note: Do not modify the specification of the existing container other than 
+  ▎ adding the required volume mount.
+  ▎
+  ▎ After your changes, kubectl -n mercury logs deploy/legacy-app -c sidecar 
+  ▎ must stream the application's log lines.
+
+  Spoiler-free tip: testing showed that a native sidecar (initContainers with
+  restartPolicy: Always) doesn't work with this exact command. The Pod gets
+  stuck in Init:Error. solution.md explains why. It's worth knowing, because the
+  newer curriculum covers native sidecars.
+
+  Each question folder contains question.md, setup.sh, verify.sh, solution.md
+  and cleanup.sh, and exam-practice/README.md keeps an index of all questions. I
+  saved this layout to memory, so when you ask for another question I'll add it
+  as q02-… the same way. Topics could include RBAC, NetworkPolicy, etcd backup,
+  HPA, Gateway API or troubleshooting.
+
+✻ Cooked for 5m 17s · done Monday 13:07
+
+※ recap: You asked for exam-style CKA practice, so Question 1 (add a sidecar container for logging) is ready and reset in exam-practice/q01-sidecar-logging on your cluster. Next, read question.md, solve it, then run ./verify.sh to grade yourself. (turn off recaps in /config)
+
+❯ how can i later export this conversation to my claude account in my browser,  
+  i have a project there called CKA and i want these practices to appear there. 
+  is it possible ?                                                              
+
+● Yes, but how depends on which kind of "Project" your CKA project is. Claude
+  Code doesn't sync into claude.ai chat Projects on its own.
+
+  If CKA is a regular claude.ai chat Project (claude.ai → Projects)
+
+  Most likely this is your case. You'd add things to it by hand:
+
+  1. Add the practice files to Project knowledge. Open the CKA project in the
+  browser, go to Project knowledge → Add content → Upload files, and select the
+  files in exam-practice/q01-sidecar-logging/ plus exam-practice/README.md. You
+  can upload .md and .sh files directly.
+
+  To make this easier, I can merge each question into a single Markdown file, so
+  each question is one upload.
+
+  2. Export this conversation. Type /export here. It saves the conversation as a
+  text file, or copies it to your clipboard. Then either upload that file to
+  the project's knowledge, or paste it into a new chat inside the project.
+
+  3. Keep it in sync automatically (optional). If this repo is on GitHub, you
+  can use Add content → GitHub in the project and pick the exam-practice/
+  folder. To pick up new questions later, you refresh that source in the project
+  instead of re-uploading files.
+
+  If CKA is a Claude Code project on claude.ai/code
+
+  Type /send-to-project here. It can post a message into an existing project,
+  and that project's Claude can read this session for the details. It needs
+  Remote Control turned on for this session. I can't start it for you; you have
+  to type it yourself.
+
+  Do you want me to build the single-file version of each question for
+  uploading?
+
+✻ Baked for 14s · done Monday 13:17
+
+※ recap: You're building tested CKA exam-style practice questions, and question 1 is set up in exam-practice/ ready to attempt. Next, upload those files or a /export of this chat to your CKA project, and say if you want single-file versions for easier uploading. (turn off recaps in /config)
+
+❯ i see the entities with k get all -n mercury.  now, i want to add             
+  volumeMounts:                                                                 
+    - name: logs                                                                
+      mountPath: /var/log                                                       
+  so i go to the file fiven to me when i run kubectl -n mercury edit deployment 
+  legacy-app  but how to easily find the location where to put it ?             
+  ⎿  ⧉ Selected 1 lines from question.md in Visual Studio Code
+
+● The editor kubectl edit opens is vim. These are the quickest ways to find the
+  right spot.
+
+  1. Know where it goes
+
+  volumeMounts belongs inside the app container, at the same indentation as
+  image:, command: and resources::
+
+  spec:                      # Deployment spec
+    template:
+      spec:                  # Pod spec
+        containers:
+        - name: app          # <- your container
+          image: ...
+          command: ...
+          volumeMounts:      # <- here, same column as image:/resources:
+          - name: logs
+            mountPath: /var/log
+
+  If you're not sure of a path, kubectl explain tells you where a field lives:
+
+  kubectl explain deploy.spec.template.spec.containers.volumeMounts
+
+  2. Jump there in vim
+
+  kubectl edit lists fields alphabetically, so inside the container the last
+  field is terminationMessagePolicy. Anything starting with "v" goes after it.
+
+  - Type /terminationMessagePolicy and press Enter. The cursor jumps to that
+    line. Press n if it lands somewhere else.
+  - Press o to open a new line below. Vim keeps the current indentation, so
+    you're already in the right column.
+
+  To check that you're in the right column, run :set number cursorcolumn. It
+  shows line numbers and a vertical line at the cursor, so you can see that
+  volumeMounts lines up with image: above it.
+
+  3. Paste without broken indentation
+
+  Pasting into vim often makes the indentation cascade to the right. To avoid
+  that:
+
+  :set paste      # then press i and paste
+  :set nopaste    # afterwards
+
+  Or put these settings in ~/.vimrc before you start. They're worth doing at the
+  start of the exam too:
+
+  set expandtab tabstop=2 shiftwidth=2
+
+  4. If saving fails
+
+  If you save something invalid, kubectl rejects it and saves your edit to a
+  temporary file, something like /tmp/kubectl-edit-xxxx.yaml. Fix that file,
+  then run:
+
+  kubectl replace -f /tmp/kubectl-edit-xxxx.yaml
+
+  You can still lose time to this. That's why many candidates run kubectl get 
+  deploy legacy-app -n mercury -o yaml > q1.yaml, edit that file in vim, then
+  run kubectl apply -f q1.yaml. If something goes wrong, the file is still
+  there.
+
+  The Pod spec also needs the volumes: list. It goes in the same Pod spec: block
+  as containers:, at the same indentation. Alphabetically it's the last field
+  there, after terminationGracePeriodSeconds, so /terminationGrace gets you
+  close.
+
+✻ Sautéed for 15s · done Monday 14:58
+
+❯ what can you tell me about this project relation to git, account, ability to  
+  push etc.                                                                     
+
+● Bash(cd "/home/harry/Downloads/k8s books/cka-study-guide" && git remote -v;
+      echo "--- branch"; git branch -vv; echo "--- status"; git status --short |
+      head -20; echo…)
+  ⎿  --- branch
+     * master 759a346 update
+     --- status
+     … +4 lines (ctrl+o to expand)
+  ⎿  Running in the background (↓ to manage)
+
+● Stop Task
+  ⎿  cd "/home/harry/Downloads/k8s books/cka-study-guide" && git remote -v;
+     echo "--- branch"; git branch -vv; echo "--- status"; git status
+     --short | head -20; echo… · stopped
+
+● Bash(cd "/home/harry/Downloads/k8s books/cka-study-guide" && git rev-list
+      --count HEAD; git reflog -8; echo "--- config"; git config --show-origin
+      user.name; git con…)
+  ⎿  1
+     759a346 HEAD@{0}: commit (initial): update
+     --- config
+     … +51 lines (ctrl+o to expand)
+
+● Here's how this repo stands. Short version: it's a local-only repo, your
+  GitHub SSH access works, but there's nowhere to push yet.
+
+  Repo state
+
+  - No remote. git remote -v is empty, so git push has no destination.
+  - History was reset. The repo now has a single commit, 759a346 update
+    (yesterday, by you). It's marked commit (initial). When this session started
+    there were older commits (1bba54c Update manifest, abcb830 Exclude files,
+    …). Those are gone, which means .git was deleted and re-initialised. The
+    original link to Benjamin Muschko's upstream repo (bmuschko/cka-study-guide)
+    went with it.
+  - Branch: master, with no upstream set.
+  - Tracked files: 217, including all of exam-practice/.
+  - Uncommitted change: exam-practice/q01-sidecar-logging/q1.yaml is modified.
+    That's your working copy from the exercise, and it's being tracked. You
+    probably want it in .gitignore so your attempts don't end up in commits.
+
+  Your account and access
+
+  - Git identity: harry with your Gmail address, set globally in ~/.gitconfig.
+  - GitHub over SSH works. The test authenticated you as harrylog using your SSH
+    key.
+  - gh (GitHub CLI) isn't installed, so you'd create a repo in the browser (or
+    install gh).
+  - No HTTPS credential helper, so use SSH URLs (git@github.com:...), not
+    https://.
+
+  To push it
+
+  1. Create an empty repo at github.com/new, for example
+     harrylog/cka-study-guide, without a README. I'd make it private. The book's
+     code is Apache-2.0, so publishing it is allowed, but your own practice
+     work probably doesn't need to be public.
+  2. Then run:
+  echo "exam-practice/**/q*.yaml" >> .gitignore
+  git rm --cached exam-practice/q01-sidecar-logging/q1.yaml
+  git commit -am "Ignore practice working files"
+  git remote add origin git@github.com:harrylog/cka-study-guide.git
+  git push -u origin master
+
+  Two side effects of pushing:
+  - The repo includes .github/workflows/validate-manifests.yml, so GitHub
+    Actions will run that workflow on every push.
+  - Once the repo is on GitHub, you can connect it to your claude.ai CKA project
+    (Add content → GitHub), so new practice questions show up there.
+
+  I can do steps 1 and 2 except creating the GitHub repo. Tell me the repo name
+  once it exists. Or install gh, run ! gh auth login, and I can create the repo
+  too.
+
+✻ Cooked for 2m 32s · done Tuesday 09:48
+
+※ recap: You're practising for the CKA with exam-style tasks, and question 1 (the sidecar logging task) is set up and ready on your cluster. Next, create an empty private GitHub repo and tell me its name so I can push this project. (turn off recaps in /config)
+
+❯ created a repo in github named cka-guide                                      
+  echo "# cka-guide" >> README.md                                               
+  git init                                                                      
+  git add README.md                                                             
+  git commit -m "first commit"                                                  
+  git branch -M main                                                            
+  git remote add origin https://github.com/harrylog/cka-guide.git               
+  git push -u origin main                                                       
+
+● I'll skip GitHub's boilerplate steps (git init, the extra README, first
+  commit), since this repo already has content. I'll also use the SSH URL rather
+  than HTTPS, because your SSH key is what's authenticated. First, a quick
+  check that nothing sensitive is tracked:
+
+● Bash(cd "/home/harry/Downloads/k8s books/cka-study-guide" && git ls-files |
+      grep -iE
+      'admin\.conf|kubeconfig|\.env|secret|credential|\.pem|\.key$|id_rsa|token'
+      ; ech…)
+  ⎿  app-a/ch10/secret/pod.yaml
+     app-a/ch10/secret/secret.yaml
+     ch03/object-management/web-app/config/db-secret.yaml
+     … +8 lines (ctrl+o to expand)
+
+● Those matches are the book's example Secret manifests with dummy values, so
+  it's fine to push them. Pushing now:
+
+● Bash(cd "/home/harry/Downloads/k8s books/cka-study-guide" && \
+      printf '\n# practice working copies\nexam-practice/**/q*.yaml\n' >>
+      .gitignore && \…)
+  ⎿  To github.com:harrylog/cka-guide.git
+      * [new branch]      main -> main
+     Branch 'main' set up to track remote branch 'main' from 'origin'.
+     … +4 lines (ctrl+o to expand)
+  ⎿  Updated .gitignore +3 -1
+      2  .vagrant
+      3  kubeadm-init.out
+      4  admin.conf
+      5 -*-console.log                                                   
+        \ No newline at end of file
+      5 +*-console.log                                                   
+      6 +# practice working copies                                       
+      7 +exam-practice/**/q*.yaml                                        
+  ⎿  PostToolUse:Bash says: Tip: Run /ultrareview before you push to catch bugs 
+     with a cloud-based multi-agent review — 3 free reviews left.
+
+● Your repo is now on GitHub at github.com/harrylog/cka-guide, on branch main,
+  and the local branch tracks it.
+
+  - Two commits pushed: your update commit and a new one that stops tracking
+    practice working files (exam-practice/**/q*.yaml). Your q1.yaml is still on
+    disk; git just ignores it now.
+  - Branch renamed from master to main to match GitHub's default.
+  - Remote is SSH (git@github.com:harrylog/cka-guide.git), so pushes use your
+    existing key with no password prompts.
+  - No secrets pushed. The only matching files were the book's example Secret
+    manifests with dummy values.
+  - The repo includes a GitHub Actions workflow (validate-manifests.yml), so it
+    may run on this push. If the repo shows a red ❌, that's the workflow, not a
+    problem with your files.
+
+  From now on it's just git add, git commit and git push.
+
+  To get the practice questions into your claude.ai CKA project, open the
+  project in the browser and go to Add content → GitHub. Pick
+  harrylog/cka-guide, then select the exam-practice/ folder. When I add new
+  questions and you push them, refresh that source in the project to pick them
+  up.
+
+✻ Worked for 29s · done Tuesday 15:44
+
+※ recap: You're practising for the CKA with exam-style tasks, and Question 1 (sidecar logging) is set up and now pushed to your GitHub repo harrylog/cka-guide. Next, connect that repo to your claude.ai CKA project via Add content, then GitHub.
+
+❯ kubectl -n mercury rollout status deploy/legacy-app                           
+                                                                                
+  deployment "legacy-app" successfully rolled out                               
+                                                                                
+   ~/Dow/k/cka-study-guide/e/q01-sidecar-logging  main  kubectl -n mercury get  
+  pod -l app=legacy-app                                                         
+  NAME                         READY   STATUS    RESTARTS   AGE                 
+  legacy-app-98595b67c-97578   1/1     Running   0          26h                 
+                                                                                
+   ~/Dow/k/cka-study-guide/e/q01-sidecar-logging  main  kubectl -n mercury logs 
+  deploy/legacy-app -c sidecar                                                  
+                                                                                
+  error: container sidecar is not valid for pod legacy-app-98595b67c-97578      
+● Bash(cd "/home/harry/Downloads/k8s
+      books/cka-study-guide/exam-practice/q01-sidecar-logging" && kubectl -n
+      mercury get deploy legacy-app -o jsonpath='{.metadata.gener…)
+  ⎿  1  containers: app  volumes:
+     deployment.apps/legacy-app
+     REVISION  CHANGE-CAUSE
+     … +51 lines (ctrl+o to expand)
+
+● Your change never reached the cluster. The Deployment is unchanged since
+  setup:
+
+  - generation: 1 and rollout history shows only revision 1.
+  - The Pod is 26h old, with the same ReplicaSet hash (98595b67c) that setup.sh
+    created.
+  - It has one container (app) and no volumes.
+
+  rollout status said "successfully rolled out" because nothing had changed, so
+  the original rollout was still the latest one. It doesn't confirm that your
+  edit went in.
+
+  Your q1.yaml has three problems, and kubectl apply would reject it, or would
+  already have:
+
+  1. Placeholders pasted literally (lines 36–37). In solution.md, the lines
+  below are shorthand for "keep what's already there". They aren't real YAML:
+  command: [...unchanged...]
+  resources: {...unchanged...}
+  Put back the real command: (the /bin/sh, -c, 'i=0; while true; ...' list) and
+  the resources.requests block. The # + comments are harmless, but you can
+  delete them.
+
+  2. spec: is indented under labels: (line 32).
+      metadata:
+        labels:
+          app: legacy-app
+          spec:          # wrong: this makes "spec" a label
+  The Pod spec: must line up with metadata:, at 4 spaces:
+      metadata:
+        labels:
+          app: legacy-app
+      spec:
+        containers:
+
+  3. Leftover lines after emptyDir (lines 50–51).
+  terminationMessagePath and terminationMessagePolicy belong to the app
+  container. They ended up under the volume when you pasted. Delete them, or
+  move them back into the app container at the same indentation as image:.
+
+  After fixing it:
+  kubectl apply -f q1.yaml           # look for "configured", not "unchanged"
+  kubectl -n mercury get pod -l app=legacy-app   # new pod, READY 2/2
+  kubectl -n mercury logs deploy/legacy-app -c sidecar
+  ./verify.sh
+
+  You don't need to remove the status: block or the other server-added fields;
+  apply ignores them. If the file has become hard to untangle, start again from
+  a clean copy: kubectl -n mercury get deploy legacy-app -o yaml > q1.yaml. Then
+  only add the mount, the container and the volume. Don't paste over the
+  existing fields.
+
+✻ Churned for 17s · done Tuesday 17:00
+
+※ recap: You're practising CKA Question 1, adding a log sidecar to the legacy-app Deployment, but your q1.yaml edit never reached the cluster. Next, fix the three problems in q1.yaml, run kubectl apply -f q1.yaml, then run ./verify.sh.
+
+❯ please elaborate on the issue, and the solution and update the solution file, 
+   why sidecar, why empty dir, what other options for solution are there        
+
+● Before rewriting, I'll check two claims the new solution will rely on: that
+  busybox's tail -F works, and that the full YAML I'm about to document is
+  valid.
+
+● Bash(S=/tmp/claude-1001/-home-harry-Downloads-k8s-books-cka-study-guide/5535c8
+      38-d53e-4352-8e33-56b2be9f3a01/scratchpad; mkdir -p $S; cat >
+      $S/final.yaml <<'EOF'
+      api…)
+  ⎿  deployment.apps/legacy-app configured (server dry run)
+     --- tail -F test
+     tail: /tmp/x.log has appeared; following end of new file
+     … +6 lines (ctrl+o to expand)
+  ⎿  (timeout 2m)
+
+● Both confirmed: tail -f exits with code 1 when the file is missing, and tail 
+  -F waits for the file to appear. Writing the expanded solution now.
+
+● Write(exam-practice/q01-sidecar-logging/solution.md)
+  ⎿  Added 316 lines, removed 45 lines
+        1 -# Solution — Question 1                                       
+        1 +# Solution — Question 1: Streaming sidecar for a file-based lo
+          +gger                                                          
+        2 
+        3 -## Steps                                                      
+        3 +## 1. Understanding the problem                               
+        4 
+        5 -```bash                                                       
+        6 -kubectl -n mercury get deploy legacy-app -o yaml > q1.yaml   #
+          - backup first                                                 
+        7 -kubectl -n mercury edit deploy legacy-app                    #
+          - or edit q1.yaml + kubectl apply -f                           
+        5 +### How `kubectl logs` actually works                         
+        6 +                                                              
+        7 +`kubectl logs` shows only what a container writes to **stdout/
+          +stderr**. The                                                 
+        8 +container runtime captures those two streams and stores them o
+          +n the node, under                                             
+        9 +`/var/log/pods/<ns>_<pod>_<uid>/<container>/`. The kubelet ser
+          +ves that file to the                                          
+       10 +API server when you run `kubectl logs`.                       
+       11 +                                                              
+       12  ```
+       13 + app container                      node                      
+       14 + ┌──────────────┐  stdout/stderr   ┌──────────────────────────
+          +─┐                                                            
+       15 + │  echo ...    │ ───────────────► │ /var/log/pods/.../app/0.l
+          +og│ ◄── kubectl logs                                          
+       16 + └──────────────┘                  └──────────────────────────
+          +─┘                                                            
+       17 +```                                                           
+       18 
+       10 -Edit `spec.template.spec` so it looks like this (additions mar
+          -ked `# +`):                                                   
+       19 +### What the legacy app does instead                          
+       20 
+       21 +```sh                                                         
+       22 +echo "... processed order $i" >> /var/log/legacy-app.log      
+       23 +```                                                           
+       24 +                                                              
+       25 +The `>>` redirect sends every line to a **file inside the cont
+          +ainer's own                                                   
+       26 +filesystem** (its writable overlay layer). So:                
+       27 +                                                              
+       28 +- stdout stays empty, and `kubectl logs ... -c app` prints not
+          +hing.                                                         
+       29 +- No other container can see the file. Each container has its 
+          +own private                                                   
+       30 +  root filesystem.                                            
+       31 +- The file is lost whenever the container restarts.           
+       32 +                                                              
+       33 +### The constraint that shapes the answer                     
+       34 +                                                              
+       35 +> *Do not modify the specification of the existing container o
+          +ther than adding                                              
+       36 +> the required volume mount.*                                 
+       37 +                                                              
+       38 +You can't fix the app itself (for example, by making it log to
+          + stdout). You                                                 
+       39 +have to work *around* it. That's the textbook case for the **s
+          +treaming sidecar                                              
+       40 +pattern** from the Kubernetes logging docs.                   
+       41 +                                                              
+       42 +---                                                           
+       43 +                                                              
+       44 +## 2. The solution                                            
+       45 +                                                              
+       46 +### Idea                                                      
+       47 +                                                              
+       48 +```                                                           
+       49 + Pod legacy-app                                               
+       50 + ┌───────────────────────────────────────────────────────────┐
+       51 + │  app container                 sidecar container          │
+       52 + │  writes ──► /var/log/legacy-app.log ──► tail -f ──► stdout 
+          +──► kubectl logs -c sidecar                                   
+       53 + │                  │                          │             │
+       54 + │                  └──── emptyDir "logs" ─────┘             │
+       55 + │                    (same directory in both)               │
+       56 + └───────────────────────────────────────────────────────────┘
+       57 +```                                                           
+       58 +                                                              
+       59 +1. Add a **volume** (`emptyDir`) to the Pod.                  
+       60 +2. Mount it at `/var/log` in **both** containers. They now see
+          + the same directory.                                          
+       61 +3. Add a **sidecar** container that `tail`s the file to **its 
+          +own stdout**.                                                 
+       62 +   That stdout is captured like any other container's, so     
+       63 +   `kubectl logs -c sidecar` works.                           
+       64 +                                                              
+       65 +### The three additions, and where each one goes              
+       66 +                                                              
+       67 +| Addition | YAML path | Indented under |                     
+       68 +|---|---|---|                                                 
+       69 +| `volumeMounts` for app | `spec.template.spec.containers[app]
+          +.volumeMounts` | the `app` container, same column as `image:` 
+          +|                                                             
+       70 +| `sidecar` container | `spec.template.spec.containers[]` | th
+          +e `containers:` list, as a new `- name:` item |               
+       71 +| `volumes` | `spec.template.spec.volumes` | Pod `spec:`, same
+          + column as `containers:` |                                    
+       72 +                                                              
+       73 +Check any path with `kubectl explain`, for example:           
+       74 +`kubectl explain deploy.spec.template.spec.volumes.emptyDir`  
+       75 +                                                              
+       76 +### Final Deployment (complete, valid YAML)                   
+       77 +                                                              
+       78  ```yaml
+       13 -    spec:                                                     
+       79 +apiVersion: apps/v1                                           
+       80 +kind: Deployment                                              
+       81 +metadata:                                                     
+       82 +  name: legacy-app                                            
+       83 +  namespace: mercury                                          
+       84 +  labels:                                                     
+       85 +    app: legacy-app                                           
+       86 +spec:                                                         
+       87 +  replicas: 1                                                 
+       88 +  selector:                                                   
+       89 +    matchLabels:                                              
+       90 +      app: legacy-app                                         
+       91 +  template:                                                   
+       92 +    metadata:                                                 
+       93 +      labels:                                                 
+       94 +        app: legacy-app                                       
+       95 +    spec:                              # Pod spec: same column
+          + as metadata:                                                 
+       96        containers:
+       15 -      - name: app                                             
+       97 +      - name: app                      # existing container: o
+          +nly volumeMounts added                                        
+       98          image: busybox:stable
+       17 -        command: [...unchanged...]                            
+       18 -        resources: {...unchanged...}                          
+       19 -        volumeMounts:                                   # +   
+       20 -        - name: logs                                    # +   
+       21 -          mountPath: /var/log                           # +   
+       22 -      - name: sidecar                                   # +   
+       23 -        image: busybox:stable                           # +   
+       24 -        command: ["/bin/sh", "-c", "tail -n+1 -f /var/log/lega
+          -cy-app.log"]  # +                                             
+       25 -        volumeMounts:                                   # +   
+       26 -        - name: logs                                    # +   
+       27 -          mountPath: /var/log                           # +   
+       28 -      volumes:                                          # +   
+       29 -      - name: logs                                      # +   
+       30 -        emptyDir: {}                                    # +   
+       99 +        command:                                              
+      100 +        - /bin/sh                                             
+      101 +        - -c                                                  
+      102 +        - 'i=0; while true; do echo "$(date) INFO legacy-app p
+          +rocessed order $i" >> /var/log/legacy-app.log; i=$((i+1)); sle
+          +ep 5; done'                                                   
+      103 +        resources:                                            
+      104 +          requests:                                           
+      105 +            cpu: 10m                                          
+      106 +            memory: 16Mi                                      
+      107 +        volumeMounts:                  # NEW                  
+      108 +        - name: logs                                          
+      109 +          mountPath: /var/log                                 
+      110 +      - name: sidecar                  # NEW container        
+      111 +        image: busybox:stable                                 
+      112 +        command:                                              
+      113 +        - /bin/sh                                             
+      114 +        - -c                                                  
+      115 +        - tail -n+1 -f /var/log/legacy-app.log                
+      116 +        volumeMounts:                                         
+      117 +        - name: logs                                          
+      118 +          mountPath: /var/log                                 
+      119 +      volumes:                         # NEW: same column as c
+          +ontainers:                                                    
+      120 +      - name: logs                                            
+      121 +        emptyDir: {}                                          
+      122  ```
+      123 
+       33 -Check it:                                                     
+      124 +When you edit the live object, it also contains server-added f
+          +ields                                                         
+      125 +(`terminationMessagePath`, `dnsPolicy`, `status:` …). Leave th
+          +em where they are.                                            
+      126 +**Only insert** the three blocks. Don't paste a whole spec ove
+          +r them.                                                       
+      127 
+      128 +### Doing it on the exam                                      
+      129 +                                                              
+      130 +**Option A: edit a file (recommended, because it keeps a backu
+          +p)**                                                          
+      131 +                                                              
+      132  ```bash
+       36 -kubectl -n mercury rollout status deploy/legacy-app           
+       37 -kubectl -n mercury get pod -l app=legacy-app        # READY 2/
+          -2                                                             
+      133 +kubectl -n mercury get deploy legacy-app -o yaml > q1.yaml    
+      134 +vim q1.yaml                     # insert the 3 blocks         
+      135 +kubectl apply -f q1.yaml        # must say "configured"       
+      136 +```                                                           
+      137 +                                                              
+      138 +**Option B: edit the live object**                            
+      139 +                                                              
+      140 +```bash                                                       
+      141 +kubectl -n mercury edit deploy legacy-app                     
+      142 +```                                                           
+      143 +                                                              
+      144 +If saving fails, kubectl keeps your edit in `/tmp/kubectl-edit
+          +-*.yaml`. Fix that                                            
+      145 +file and run `kubectl replace -f <file>`.                     
+      146 +                                                              
+      147 +vim helpers: `/terminationMessagePolicy` jumps to the end of t
+          +he `app` container.                                           
+      148 +Then press `o` to open a new line at the same indentation. Use
+          + `:set paste`                                                 
+      149 +before pasting.                                               
+      150 +                                                              
+      151 +### Verifying (don't trust `rollout status` alone)            
+      152 +                                                              
+      153 +```bash                                                       
+      154 +kubectl -n mercury get deploy legacy-app -o jsonpath='{.metada
+          +ta.generation}{"\n"}'  # must be >1                           
+      155 +kubectl -n mercury get pod -l app=legacy-app        # NEW pod 
+          +name, small AGE, READY 2/2                                    
+      156  kubectl -n mercury logs deploy/legacy-app -c sidecar
+      157 +./verify.sh                                                   
+      158  ```
+      159 
+       41 -## Why                                                        
+      160 +`rollout status` reports "successfully rolled out" even when *
+          +*nothing was                                                  
+      161 +changed**, because the original rollout is still the latest on
+          +e. A Pod that is                                              
+      162 +old and `1/1` means your edit never landed.                   
+      163 
+       43 -- **emptyDir** is the right volume type. Every container in th
+          -e Pod shares it,                                              
+       44 -  and it lasts as long as the Pod does.                       
+       45 -- Before the change, the log file lived in the `app` container
+          -'s own writable                                               
+       46 -  layer, so no other container could see it.                  
+       47 -- `tail -n+1 -f` prints the file from line 1 and keeps followi
+          -ng it, so the                                                 
+       48 -  sidecar's stdout (and so `kubectl logs`) mirrors the log fil
+          -e.                                                            
+       49 -- You may see the sidecar restart once if it starts before `ap
+          -p` has created the                                            
+       50 -  file. That's harmless: it recovers as soon as the file exist
+          -s.                                                            
+      164 +---                                                           
+      165 
+       52 -## Gotcha: native sidecar (`initContainers` + `restartPolicy: 
+          -Always`)                                                      
+      166 +## 3. Why a sidecar?                                          
+      167 
+       54 -A native sidecar **starts before** the main containers, and th
+          -e kubelet waits for                                           
+       55 -it to be running before it starts `app`. Here, `tail -f` exits
+          - straight away                                                
+       56 -because `/var/log/legacy-app.log` doesn't exist yet. So `app` 
+          -never starts and                                              
+       57 -the Pod loops in `Init:Error`, which means the native form fai
+          -ls with this exact                                            
+       58 -command. To use a native sidecar for log shipping, use `tail -
+          -F` (it retries                                                
+       59 -until the file appears) or `touch` the file first. On the exam
+          -, use the command                                             
+       60 -exactly as given.                                             
+      168 +A sidecar is an extra container in the **same Pod** as the mai
+          +n application.                                                
+      169 +Containers in one Pod:                                        
+      170 
+       62 -## Docs to bookmark                                           
+      171 +- are always **scheduled together** on the same node,         
+      172 +- **share volumes** (so they can share files),                
+      173 +- share the network namespace (`localhost`),                  
+      174 +- have the same lifecycle (created and deleted together).     
+      175 
+       64 -- Sidecar containers: https://kubernetes.io/docs/concepts/work
+          -loads/pods/sidecar-containers/                                
+       65 -- Logging architecture (streaming sidecar): https://kubernetes
+          -.io/docs/concepts/cluster-administration/logging/             
+      176 +That's exactly what you need here: a helper that can read the 
+          +app's files                                                   
+      177 +without touching the app. Benefits:                           
+      178 +                                                              
+      179 +- **No change to the app.** The legacy binary and its image st
+          +ay as they are.                                               
+      180 +- **Separation of concerns.** Log handling lives in its own co
+          +ntainer. You can                                              
+      181 +  update or remove it on its own.                             
+      182 +- **Standard tooling works again.** `kubectl logs`, and any no
+          +de-level log                                                  
+      183 +  collector (Fluent Bit, Promtail…) that reads `/var/log/pods`
+          +, now pick up                                                 
+      184 +  these logs.                                                 
+      185 +                                                              
+      186 +Costs: an extra container per Pod (a little CPU and memory). T
+          +he log data is                                                
+      187 +also written twice, once to the emptyDir and once to the conta
+          +iner log on the                                               
+      188 +node.                                                         
+      189 +                                                              
+      190 +---                                                           
+      191 +                                                              
+      192 +## 4. Why `emptyDir`?                                         
+      193 +                                                              
+      194 +`emptyDir` is a directory that is created empty when the Pod s
+          +tarts on a node,                                              
+      195 +shared by **all containers in that Pod**, and deleted when the
+          + Pod is removed.                                              
+      196 +It survives container restarts, but not Pod deletion.         
+      197 +                                                              
+      198 +That's exactly the scope of the problem: two containers in one
+          + Pod need to                                                  
+      199 +share a scratch directory, and nobody needs the files after th
+          +e Pod is gone.                                                
+      200 +                                                              
+      201 +| Volume type | Would it work? | Why it's not the best choice 
+          +here |                                                        
+      202 +|---|---|---|                                                 
+      203 +| **emptyDir** | ✅ | Pod-scoped and shared, no setup, no node
+          + coupling. **Best fit.** |                                    
+      204 +| `emptyDir: {medium: Memory}` | ✅ | tmpfs (RAM): fast, but e
+          +very byte counts against the Pod's memory limit. Risky for a g
+          +rowing log file. |                                            
+      205 +| `hostPath` (e.g. `/var/log/legacy`) | ⚠️ works | Ties the Po
+          +d to a node directory. Replicas on the same node write to the 
+          +same file. A security risk (often blocked by Pod Security "res
+          +tricted"). Files are left behind on the node. |               
+      206 +| `persistentVolumeClaim` | ⚠️ works | Needs a StorageClass or
+          + PV. Overkill for temporary logs. With `ReadWriteOnce` and sev
+          +eral replicas on different nodes, it fails. |                 
+      207 +| `configMap` / `secret` | ❌ | Mounted **read-only**, so the 
+          +app can't write. |                                            
+      208 +                                                              
+      209 +Tip: add `sizeLimit` so a runaway log can't fill the node's di
+          +sk:                                                           
+      210 +                                                              
+      211 +```yaml                                                       
+      212 +volumes:                                                      
+      213 +- name: logs                                                  
+      214 +  emptyDir:                                                   
+      215 +    sizeLimit: 100Mi     # Pod is evicted if exceeded         
+      216 +```                                                           
+      217 +                                                              
+      218 +Gotcha: mounting a volume at `/var/log` **hides** whatever the
+          + image had in                                                 
+      219 +`/var/log`. For busybox that directory is empty, so it doesn't
+          + matter. For other                                            
+      220 +images, mount just a subdirectory (e.g. `/var/log/app`), or us
+          +e `subPath`.                                                  
+      221 +                                                              
+      222 +---                                                           
+      223 +                                                              
+      224 +## 5. Other ways to solve it                                  
+      225 +                                                              
+      226 +### 5a. Native sidecar container (Kubernetes ≥ 1.29, GA in 1.3
+          +3)                                                            
+      227 +                                                              
+      228 +A container in `initContainers` with `restartPolicy: Always`: 
+      229 +                                                              
+      230 +```yaml                                                       
+      231 +      initContainers:                                         
+      232 +      - name: sidecar                                         
+      233 +        image: busybox:stable                                 
+      234 +        restartPolicy: Always          # this is what makes it
+          + a native sidecar                                             
+      235 +        command: ["/bin/sh", "-c", "tail -n+1 -F /var/log/lega
+          +cy-app.log"]   # -F, not -f                                   
+      236 +        volumeMounts:                                         
+      237 +        - name: logs                                          
+      238 +          mountPath: /var/log                                 
+      239 +```                                                           
+      240 +                                                              
+      241 +Advantages over a plain second container:                     
+      242 +                                                              
+      243 +- It **starts before** the main containers and **stops after**
+          + them, so it                                                  
+      244 +  doesn't miss the first or last log lines.                   
+      245 +- In **Jobs**, a regular sidecar that never exits keeps the Jo
+          +b from                                                        
+      246 +  completing. A native sidecar doesn't block completion.      
+      247 +                                                              
+      248 +**Why it fails with the exact command from the task.** A nativ
+          +e sidecar starts                                              
+      249 +first, *before* `app` has created the log file. busybox `tail 
+          +-f` on a missing                                              
+      250 +file prints `can't open ... No such file or directory` and exi
+          +ts with code 1.                                               
+      251 +The sidecar keeps crashing, and the Pod stays in `Init:Error` 
+          +/ `0/2` (tested on                                            
+      252 +this cluster). `tail -F` (capital F) waits for the file to app
+          +ear and then                                                  
+      253 +follows it, which fixes the problem. The task gives you the `-
+          +f` command, so use                                            
+      254 +the regular-container form on the exam.                       
+      255 +                                                              
+      256 +### 5b. Make the app log to stdout (best in real life, not all
+          +owed here)                                                    
+      257 +                                                              
+      258 +The cleanest fix is for the app to write logs to stdout, the  
+      259 +[12-factor](https://12factor.net/logs) way. If you can't chang
+          +e the code, a                                                 
+      260 +symlink does the same thing. This is how the official nginx im
+          +age works:                                                    
+      261 +                                                              
+      262 +```sh                                                         
+      263 +ln -sf /dev/stdout /var/log/legacy-app.log                    
+      264 +```                                                           
+      265 +                                                              
+      266 +You'd need to change the `app` container's command or image. T
+          +he task forbids                                               
+      267 +that, so it's not acceptable here. In production it's usually 
+          +the best answer:                                              
+      268 +no extra container and no duplicated log data.                
+      269 +                                                              
+      270 +### 5c. Logging-agent sidecar (ship logs elsewhere)           
+      271 +                                                              
+      272 +Instead of `tail`, run a log shipper (Fluent Bit, Vector, Prom
+          +tail) as the                                                  
+      273 +sidecar. It reads the file from the shared emptyDir and sends 
+          +it straight to                                                
+      274 +Elasticsearch, Loki and so on. It uses the same pattern (sidec
+          +ar + emptyDir),                                               
+      275 +but it doesn't make `kubectl logs` work, so it doesn't meet th
+          +is task's                                                     
+      276 +requirement.                                                  
+      277 +                                                              
+      278 +### 5d. Node-level logging agent (DaemonSet)                  
+      279 +                                                              
+      280 +The usual cluster-wide approach is one Fluent Bit (or similar)
+          + DaemonSet per                                                
+      281 +node, reading `/var/log/pods/*`. It only sees **stdout/stderr*
+          +*. A log file                                                 
+      282 +inside a container is invisible to it, so you'd **still** need
+          + a streaming                                                  
+      283 +sidecar (or 5b). The two approaches work together; one doesn't
+          + replace the                                                  
+      284 +other.                                                        
+      285 +                                                              
+      286 +### 5e. `kubectl exec` (not a solution)                       
+      287 +                                                              
+      288 +```bash                                                       
+      289 +kubectl -n mercury exec deploy/legacy-app -c app -- tail -f /v
+          +ar/log/legacy-app.log                                         
+      290 +```                                                           
+      291 +                                                              
+      292 +Useful for a quick look while debugging. It changes nothing, s
+          +o it doesn't                                                  
+      293 +satisfy the task.                                             
+      294 +                                                              
+      295 +### Summary                                                   
+      296 +                                                              
+      297 +| Approach | Meets this task? | Real-world use |              
+      298 +|---|---|---|                                                 
+      299 +| Regular sidecar + emptyDir | ✅ **exam answer** | Legacy app
+          +s you can't change |                                          
+      300 +| Native sidecar + emptyDir | ⚠️ only with `tail -F` | Preferr
+          +ed on modern clusters, essential in Jobs |                    
+      301 +| App logs to stdout / symlink | ❌ (changes app) | Best when 
+          +you control the image |                                       
+      302 +| Log-shipper sidecar | ❌ (no `kubectl logs`) | Send file log
+          +s straight to a backend |                                     
+      303 +| Node DaemonSet agent | ❌ (can't see files) | Standard clust
+          +er logging, alongside the above |                             
+      304 +| `kubectl exec tail` | ❌ | Ad-hoc debugging only |          
+      305 +                                                              
+      306 +---                                                           
+      307 +                                                              
+      308 +## 6. Common mistakes (seen in practice)                      
+      309 +                                                              
+      310 +1. **Pasting shorthand literally.** Writing `command: [...unch
+          +anged...]` in the                                             
+      311 +   real YAML. Keep the real fields and only *insert* new block
+          +s.                                                            
+      312 +2. **Wrong indentation of `spec:`.** If Pod `spec:` ends up un
+          +der `labels:`,                                                
+      313 +   YAML treats it as a label. It must line up with `metadata:`
+          +.                                                             
+      314 +3. **Fields pushed out of their container.** Inserting in the 
+          +middle of the                                                 
+      315 +   `app` container leaves `terminationMessagePath`/`Policy` un
+          +der `volumes`.                                                
+      316 +   Insert *after* the container's last field.                 
+      317 +4. **Trusting `rollout status`.** It says "successfully rolled
+          + out" for an                                                  
+      318 +   unchanged Deployment. Check that the Pod is new and `2/2`. 
+      319 +5. **Mounting the volume in only one container.** Each contain
+          +er has to mount                                               
+      320 +   it.                                                        
+      321 +6. **Volume name mismatch.** The `volumeMounts[].name` must eq
+          +ual                                                           
+      322 +   `volumes[].name` (`logs`).                                 
+      323 +7. **Using `-c sidecar` on the old Pod.** If the old Pod is st
+          +ill terminating,                                              
+      324 +   `kubectl logs deploy/...` may pick it and report           
+      325 +   `container sidecar is not valid`.                          
+      326 +                                                              
+      327 +## Docs to bookmark (allowed in the exam)                     
+      328 +                                                              
+      329 +- Logging architecture, streaming sidecar:                    
+      330 +  https://kubernetes.io/docs/concepts/cluster-administration/l
+          +ogging/#streaming-sidecar-container                           
+      331 +- Sidecar containers (native):                                
+      332 +  https://kubernetes.io/docs/concepts/workloads/pods/sidecar-c
+          +ontainers/                                                    
+      333 +- Volumes, emptyDir:                                          
+      334 +  https://kubernetes.io/docs/concepts/storage/volumes/#emptydi
+          +r                                                             
+      335 +- Communicate between containers in a Pod (shared volume examp
+          +le):                                                          
+      336 +  https://kubernetes.io/docs/tasks/access-application-cluster/
+          +communicate-containers-same-pod-shared-volume/                
+
+● I rewrote exam-practice/q01-sidecar-logging/solution.md to answer all three
+  questions. I validated the full Deployment YAML against the cluster with a dry
+  run, and the tail -f/tail -F behavior it describes was tested in a Pod here.
+
+  The issue. kubectl logs only shows what a container writes to stdout/stderr.
+  The legacy app writes to /var/log/legacy-app.log instead. That file is inside
+  the app container's own private filesystem, so no other container can see it,
+  and it's lost if the container restarts. You also can't change the app, so you
+  have to work around it.
+
+  Why a sidecar. Containers in the same Pod always run on the same node and can
+  share volumes. A second container can read the app's file and print it to its
+  own stdout without touching the app. Once it's on stdout, kubectl logs -c 
+  sidecar (and any log collector) can see it.
+
+  Why emptyDir. It's a directory shared by every container in the Pod, created
+  when the Pod starts and deleted with it. That matches the need exactly, with
+  no setup. The other volume types are worse here:
+  - medium: Memory: RAM-backed, and it counts against the Pod's memory limit.
+  - hostPath: ties the Pod to one node's directory, and replicas on the same
+    node write to the same file.
+  - PVC: overkill for temporary logs, and it breaks with several replicas on
+    different nodes.
+  - ConfigMap or Secret: mounted read-only, so the app can't write.
+
+  Other ways to solve it:
+  - Native sidecar (initContainers with restartPolicy: Always). It fails with
+    the exact command the task gives: it starts before the app, the log file
+    doesn't exist yet, and tail -f exits with code 1. Using tail -F makes it
+    work, because -F waits for the file to appear.
+  - Make the app log to stdout, for example with ln -sf /dev/stdout on the log
+    file. It's the best fix in real life, but the task forbids changing the app
+    container.
+  - A log-shipper sidecar (Fluent Bit and similar) sends the file straight to a
+    logging backend. kubectl logs still won't show anything, so it doesn't meet
+    the task.
+  - A node-level log agent (DaemonSet) only reads stdout/stderr, so it can't see
+    the file. You'd still need a sidecar alongside it.
+  - kubectl exec ... tail is fine for a quick look while debugging, but it
+    changes nothing.
+
+  The file also has the complete final YAML, without the [...unchanged...]
+  shorthand that caused your error. It shows where each of the three new blocks
+  goes and how to check the edit really landed (a new Pod showing 2/2, not just
+  rollout status). It ends with a list of common mistakes, including the three
+  in your q1.yaml.
+
+  I haven't committed this. Say the word and I'll commit and push it.
+
+✻ Worked for 1m 32s · done Tuesday 17:08
+
+※ recap: You're practising CKA questions, and I just expanded the sidecar question's solution file covering why sidecar, why emptyDir, and alternative approaches. Next, fix your q1.yaml and apply it, or tell me to commit and push the new solution.
+
+❯ please provide your next exam practice scenario, same format as before        
+
+● I'll make Question 2 cover a different exam domain. First I'm checking whether
+  your k3s cluster actually enforces NetworkPolicies, since that decides which
+  topics this cluster can grade properly.
+
+● Bash(ps aux | grep -E 'k3s (server|agent)' | grep -v grep | head -2; cat
+      /etc/systemd/system/k3s.service 2>/dev/null | grep -A5 ExecStart; cat
+      /etc/rancher/k3s/confi…)
+  ⎿  root        2681  1.0  2.0 1978992 673456 ?      Ssl  Nov22  41:58 /us
+     r/local/bin/k3s server
+     ExecStartPre=-/sbin/modprobe br_netfilter
+     … +22 lines (ctrl+o to expand)
+
+● The k3s cluster runs with default settings, including a NetworkPolicy
+  controller, so policies should be enforced. I'm building Question 2 on
+  NetworkPolicy and will confirm enforcement during testing. · summary
+
+● Bash(mkdir -p "/home/harry/Downloads/k8s
+      books/cka-study-guide/exam-practice/q02-networkpolicy")
+  ⎿  Done
+
+● Write(exam-practice/q02-networkpolicy/question.md)
+  ⎿  Wrote 40 lines to exam-practice/q02-networkpolicy/question.md
+       1 # Question 2 — Weight: 7%
+       2 
+       3 > **Context**
+       4 > You must connect to the correct host. Failure to do so may res
+         ult in a zero score.
+       5 > `[candidate@base] $ ssh cka-node02`
+       6 > *(Practice note: just use your local cluster — run `./setup.sh
+         ` first.)*
+       7 
+       8 ---
+     … +32 lines (ctrl+o to expand)
+
+● Write(exam-practice/q02-networkpolicy/setup.sh)
+  ⎿  Wrote 135 lines to exam-practice/q02-networkpolicy/setup.sh
+       1 #!/usr/bin/env bash
+       2 # Builds the starting state for Question 2. Safe to re-run (rese
+         ts the task).
+       3 set -euo pipefail
+       4 
+       5 kubectl delete namespace venus mars monitoring --ignore-not-foun
+         d --wait=true >/dev/null
+       6 
+       7 kubectl apply -f - <<'EOF'
+       8 apiVersion: v1
+     … +127 lines (ctrl+o to expand)
+
+● Write(exam-practice/q02-networkpolicy/verify.sh)
+  ⎿  Wrote 56 lines to exam-practice/q02-networkpolicy/verify.sh
+       1 #!/usr/bin/env bash
+       2 # Grades Question 2.
+       3 set -uo pipefail
+       4 
+       5 pass=0; fail=0
+       6 check() { # check "<description>" <exit-code>
+       7   if [ "$2" -eq 0 ]; then echo "  [PASS] $1"; pass=$((pass+1));
+         else echo "  [FAIL] $1"; fail=$((fail+1)); fi
+       8 }
+       9 
+     … +47 lines (ctrl+o to expand)
+
+● Write(exam-practice/q02-networkpolicy/cleanup.sh)
+  ⎿  Wrote 2 lines to exam-practice/q02-networkpolicy/cleanup.sh
+      1 #!/usr/bin/env bash
+      2 kubectl delete namespace venus mars monitoring --ignore-not-found
+
+● Bash(cd "/home/harry/Downloads/k8s
+      books/cka-study-guide/exam-practice/q02-networkpolicy" && chmod +x *.sh &&
+      ./setup.sh && echo "--- baseline reachability" && for t…)
+  ⎿  Error: Exit code 1
+     namespace/venus created
+     namespace/mars created
+     namespace/monitoring created
+     deployment.apps/api created
+     service/api created
+     pod/frontend created
+     pod/batch created
+     pod/frontend created
+     pod/prometheus created
+     … +12 lines (ctrl+o to expand)
+
+● The baseline loop broke only because zsh doesn't word-split $t the way bash
+  does. Re-running it under bash, then testing the reference policy:
+
+● Bash(cd "/home/harry/Downloads/k8s
+      books/cka-study-guide/exam-practice/q02-networkpolicy" && bash -c 'for t
+      in "venus frontend 8080" "venus batch 9090" "mars fronten…)
+  ⎿  venus/frontend -> 8080: api: hello from api-75fd6f9966-m7fhv
+     venus/batch -> 9090: api_requests_total 42
+     mars/frontend -> 8080: api: hello from api-75fd6f9966-78psd
+     … +20 lines (ctrl+o to expand)
+  ⎿  (timeout 5m)
+
+● The reference policy passes all 12 checks on the cluster, so the grader works.
+  I'm now testing whether it catches a frontend rule that matches Pods across
+  every namespace. · summary
+
+● Bash(cd "/home/harry/Downloads/k8s
+      books/cka-study-guide/exam-practice/q02-networkpolicy" && kubectl -n venus
+      patch networkpolicy api-allow --type=json -p='[{"op":"r…)
+  ⎿    [FAIL] mars/frontend -> api:8080 is DENIED
+     Score: 11/12
+     RESULT: FAIL
+     … +2 lines (ctrl+o to expand)
+  ⎿  (timeout 5m)
+
+● The grader catches it. Writing the solution file and updating the index:
+
+● Write(exam-practice/q02-networkpolicy/solution.md)  ⎿  Wrote 273 lines to exam-practice/q02-networkpolicy/solution.md
+       1 # Solution — Question 2: NetworkPolicy with per-port, per-source
+          rules
+       2 
+       3 ## 1. Understanding the problem
+       4 
+       5 ### Starting state
+       6 
+       7 ```
+       8                          Service api (venus)
+       9                        ┌─────────────────────┐
+     … +264 lines (ctrl+o to expand)
+
+● Update(exam-practice/README.md)
+  ⎿  Added 1 line
+      39  | #  | Topic                              | Domain
+                       | Weight |
+      40  |----|------------------------------------|--------------------
+          -------------|--------|
+      41  | 01 | Sidecar container / shared volume  | Workloads & Schedul
+          ing          | ~4%    |
+      42 +| 02 | NetworkPolicy (per-port, per-source) | Services & Networ
+         +king         | ~7%    |                                        
+
+● Update(exam-practice/q02-networkpolicy/solution.md)
+  ⎿  Added 1 line, removed 1 line
+      123 
+      124  ### Rule 1: `podSelector` alone means *this* namespace
+      125 
+      126 -Inside `from`, a `podSelector` **without** a `namespaceSelecto
+          -r** matches Pods in                                           
+      126 +Inside `from`, a `podSelector` **without** a `namespaceSelecto
+          +r` matches Pods in                                            
+      127  the **policy's own namespace** only (`venus`). That's exactly
+           what keeps the
+      128  decoy `mars/frontend` out.
+      129 
+
+● Question 2 is a NetworkPolicy task. I tested it on your cluster: with no
+  policy the grader fails at the first check, the reference policy scores 12/12,
+  and a common wrong answer scores 11/12. The task is reset and ready for you.
+  Your k3s cluster does block traffic once a policy applies.
+
+  How to run it
+
+  cd "exam-practice/q02-networkpolicy"
+  ./setup.sh        # already done; re-run it any time to reset the task
+  cat question.md   # aim for about 8 minutes
+  ./verify.sh       # checks the policy and tests real traffic from 4 Pods to 
+  both ports
+  ./cleanup.sh      # deletes the venus, mars and monitoring namespaces
+
+  The question
+
+  ▎ Question 2 — Weight: 7%
+  ▎ [candidate@base] $ ssh cka-node02 (practice: use your local cluster)
+  ▎
+  ▎ Task
+  ▎ The Deployment api in the namespace venus exposes two ports through the 
+  ▎ Service api:
+  ▎ - 8080/TCP: the application API
+  ▎ - 9090/TCP: the metrics endpoint
+  ▎
+  ▎ Currently, any Pod in the cluster can reach both ports.
+  ▎
+  ▎ Create a new NetworkPolicy named api-allow in the namespace venus that 
+  ▎ applies to the Pods of the Deployment api and:
+  ▎ - allows connections to port 8080 only from Pods with the label app=frontend
+  ▎ that run in the namespace venus
+  ▎ - allows connections to port 9090 only from Pods running in the namespace 
+  ▎ monitoring
+  ▎ - denies all other incoming connections to the api Pods
+  ▎
+  ▎ Note
+  ▎ - Do not restrict outgoing (egress) traffic of the api Pods.
+  ▎ - Do not modify or relabel any existing Pods, Deployments, Services or 
+  ▎ Namespaces.
+  ▎ - Other Pods with the label app=frontend exist in other namespaces. They 
+  ▎ must not be able to reach port 8080.
+  ▎
+  ▎ Test with, for example: kubectl -n venus exec frontend -- wget -qO- -T 2 
+  ▎ http://api.venus:8080
+
+  solution.md explains the full answer, the rules for combining selectors, other
+  approaches and common mistakes, so don't open it until you've tried. I added
+  Question 2 to the index in exam-practice/README.md. None of this is committed
+  yet; say if you want it committed and pushed.
+
+✻ Churned for 3m 11s · done 8:24
+
+❯ if our session is here is closed, or i want to open a session in a diffrent   
+  ide and repo , what to write to you inorder for you to know what to provide   
+  regarding the exam practice ? can i relate this session to future sessions    
+  somehow ? use export maybe ?                                                  
+
+● Yes. Some of this already carries over between sessions, and a small file can
+  carry the rest.
+
+  What already carries over
+
+  Same folder, new session. I saved a memory note about how practice questions
+  are built: the exam-practice/qNN-<topic>/ layout, the five files in each, and
+  the rule to test every question on your k3s cluster. Memory is tied to this
+  folder, so any new Claude Code session started in cka-study-guide/ loads it
+  automatically. You just need to write:
+
+  ▎ next CKA practice question
+
+  I'll also read exam-practice/README.md to see that q01 and q02 exist and pick
+  a new topic.
+
+  Resuming this exact session. From this folder, run claude --continue to reopen
+  the most recent session, or claude --resume to choose one from a list. Either
+  brings back the full conversation. Both only work from the same folder on
+  this machine.
+
+  What doesn't carry over
+
+  - A different repo or folder. Memory is stored per folder, so a session
+    elsewhere won't see it.
+  - Another machine or the claude.ai website. Memory is a local file under
+    ~/.claude/ and never leaves your computer.
+
+  Options for working anywhere
+
+  1. Add a CLAUDE.md to this repo (recommended). Claude Code reads it
+     automatically in every session in the repo, from any IDE or clone, on any
+     machine. It's committed to git, so it travels with your GitHub repo.
+  2. Create a user-level skill, for example cka-practice in ~/.claude/skills/.
+     It works from any folder on this machine. You'd say "give me a CKA practice
+     question" and it would know the format, where the questions folder is, and
+     which topics are done. You already have a similar ckad-practice skill.
+  3. Paste a prompt into a session. It works anywhere, including claude.ai, but
+     you'd have to paste it every time:
+  ▎ I'm preparing for the CKA. My practice questions are in harrylog/cka-guide 
+  under exam-practice/. Each question is a folder qNN-<topic>/ containing 
+  question.md (worded like the real exam), setup.sh, verify.sh, solution.md (in 
+  depth: why it works, alternatives, common mistakes) and cleanup.sh. Check 
+  exam-practice/README.md for topics already done and create the next question 
+  on a new topic.
+
+  About /export
+
+  /export saves the whole conversation as a text file. That's useful for keeping
+  a record, or for uploading to your claude.ai CKA project. It isn't a good way
+  to carry context forward, though: it's long and full of tool output. A short
+  CLAUDE.md gives the next session the same knowledge with much less noise.
+
+  My suggestion: let me add the CLAUDE.md (option 1), and the skill (option 2)
+  if you also work on CKA from other folders. Do you want me to create one or
+  both?
+
+✻ Crunched for 15s · done 8:27
+
+※ recap: You're building exam-style CKA practice questions in your `cka-guide` repo; Question 2 (NetworkPolicy) is set up and ready. Next, tell me whether to add a `CLAUDE.md`, a skill, or both so future sessions remember this.
+
+❯ yes, create these, i will provide them to a session in a diff repo,           
+  afterwards i will do export and also provide that                             
+
+● Write(CLAUDE.md)
+  ⎿  Wrote 101 lines to CLAUDE.md
+       1 # CLAUDE.md
+       2 
+       3 This repo is Benjamin Muschko's *CKA Study Guide, 2nd Edition* s
+         ource code (book
+       4 chapters live in `chNN/` and `app-a/`), plus the user's own CKA
+         exam practice
+       5 in `exam-practice/`. GitHub: `harrylog/cka-guide` (branch `main`
+         , SSH remote).
+       6 
+       7 ## Exam practice questions (`exam-practice/`)
+     … +94 lines (ctrl+o to expand)
+
+● Write(~/.claude/skills/cka-practice/SKILL.md)
+  ⎿  Wrote 170 lines to ~/.claude/skills/cka-practice/SKILL.md
+       1 ---
+       2 name: cka-practice
+       3 description: Create realistic CKA (Certified Kubernetes Administ
+         rator) exam-style practice questions with a setup script, an aut
+         o-grader, and an in-depth solution, tested on the user's local k
+         3s cluster. Use when the user asks for a CKA question, the next
+         practice scenario, exam practice, or a CKA mock task, or wants t
+         o know which CKA topics they have covered.
+       4 ---
+       5 
+     … +165 lines (ctrl+o to expand)
+
+● CLAUDE.md now covers what my earlier memory note held, so I'm removing that
+  note to avoid two copies drifting apart.
+
+● Bash(M=/home/harry/.claude/projects/-home-harry-Downloads-k8s-books-cka-study-
+      guide/memory; rm "$M/cka-exam-practice-folder.md" && sed -i
+      '/cka-exam-practice-folder.…)
+  ⎿  ---
+     ckad-practice
+     cka-practice
+     … +4 lines (ctrl+o to expand)
+  ⎿  1 skill available
+
+● I created both files. Claude Code has already picked up the new cka-practice
+  skill.
+
+  CLAUDE.md (repo root of cka-study-guide)
+  - Claude Code loads it automatically in any session in this repo, from any IDE
+    or clone.
+  - It covers the question folder layout, how question.md and solution.md should
+    be written, and how verify.sh should grade.
+  - It also holds the rule to test every question before handing it over, notes
+    on your environment (k3s, zsh, busybox), the topics done so far, and which
+    exam domains are still uncovered.
+
+  ~/.claude/skills/cka-practice/SKILL.md (user-level, so it works from any
+  folder on this machine)
+  - It has the same rules, plus where the questions live.
+  - From a different repo, it still writes new questions into ~/Downloads/k8s 
+    books/cka-study-guide/exam-practice/.
+  - On another machine without that folder, it asks whether to clone
+    harrylog/cka-guide.
+  - It also covers how to choose the next topic by exam weight (Troubleshooting
+    is 30% and still uncovered), how to present a question, and that you like
+    the "why / alternatives" explanations.
+  - It expects you might paste an exported transcript, and treats it as
+    background.
+
+  I deleted my memory note for this folder, since CLAUDE.md now holds the same
+  information.
+
+  In another repo on this machine, the skill loads automatically, so you don't
+  need to provide anything. Just write:
+
+  ▎ next CKA practice question
+
+  You can still paste the export if you like. On another machine, copy SKILL.md
+  into ~/.claude/skills/cka-practice/ there, and clone the repo to get
+  CLAUDE.md.
+
+  Next steps:
+  1. Push to GitHub. CLAUDE.md, q02-networkpolicy/ and the README change aren't
+     committed yet. Until you push, clones and your claude.ai project won't have
+     them. Want me to commit and push?
+  2. Export. Run /export here whenever you're ready.
+
+✻ Cogitated for 1m 13s · done 9:42
