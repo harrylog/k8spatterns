@@ -83,12 +83,16 @@ task is left fresh for the user. Never leave the solution applied.
 ## Local environment facts
 
 - Namespaces already used by earlier questions: `mercury` (q01), `venus`/`mars`
-  (q02), `saturn` (q03). Pick a fresh one for each new question.
+  (q02), `saturn` (q03), `jupiter`/`europa`/`ganymede` (q04). Pick a fresh one for each new question.
 - Single-node **k3s v1.34** (`kubectl` context `default`). Its NetworkPolicy
   controller is active, so policies are enforced.
 - `busybox:stable` is cached locally. Prefer it for test workloads
   (`httpd -f -p PORT -h DIR` makes a quick web server).
 - `jq` is installed. `gh` is **not**.
+- Image pulls from Docker Hub work. `curlimages/curl:8.11.1` is cached and is a
+  working in-cluster API client (busybox `wget` fails TLS against the API server).
+- kubeconfig has a single context `default` (namespace `default`). Still pass
+  `-n` explicitly in scripts.
 - The user's shell is **zsh**: unquoted `$var` doesn't word-split, so wrap
   bash-isms in `bash -c '…'`.
 - busybox `tail -f` exits with code 1 if the file doesn't exist yet. `tail -F`
@@ -104,12 +108,13 @@ task is left fresh for the user. Never leave the solution applied.
 | 01 | Sidecar container + emptyDir log streaming | Workloads & Scheduling |
 | 02 | NetworkPolicy, per-port / per-source rules | Services & Networking |
 | 03 | Broken liveness/readiness probes, startupProbe | Troubleshooting |
+| 04 | RBAC: ServiceAccount, ClusterRole + RoleBindings, token automount | Cluster Architecture |
 
 (`exam-practice/README.md` is the source of truth; keep both in sync.)
 
 CKA curriculum weights: Troubleshooting 30%, Cluster Architecture/Installation/
 Configuration 25%, Services & Networking 20%, Workloads & Scheduling 15%,
 Storage 10%. Domains not covered yet: **Cluster
-Architecture** (RBAC, Helm/Kustomize, CRDs/operators), **Storage** (PV/PVC/
+Architecture** beyond RBAC (Helm/Kustomize, CRDs/operators), **Storage** (PV/PVC/
 StorageClass). Also uncovered: Gateway API/Ingress, HPA, PriorityClass,
 scheduling (taints/affinity), and CoreDNS.

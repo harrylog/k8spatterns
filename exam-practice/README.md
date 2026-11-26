@@ -46,3 +46,4 @@ Questions are numbered across both practice repos. q01 and q02 live in
 | 01 | Sidecar container / shared volume       | Workloads & Scheduling | ~4%    | cka-guide |
 | 02 | NetworkPolicy (per-port, per-source)    | Services & Networking  | ~7%    | cka-guide |
 | 03 | Broken liveness/readiness, startupProbe | Troubleshooting        | ~7%    | Health Probe (`foundational/cn4_HealthProbe`) |
+| 04 | RBAC: ServiceAccount, ClusterRole + RoleBindings | Cluster Architecture | ~7%    | Access Control (`security/AccessControl`) |
